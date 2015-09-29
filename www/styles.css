@@ -1,0 +1,11 @@
+/* Adjust the main body of the page to not slide behind the bootstrap nav header. */
+
+.page-host {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50px;
+    bottom: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+}

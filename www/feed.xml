@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+	xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+	>
+
+<channel>
+	<title>The Oasis Digital Blog &#187; CQRS</title>
+	<atom:link href="http://blog.oasisdigital.com/category/cqrs/feed/" rel="self" type="application/rss+xml" />
+	<link>http://blog.oasisdigital.com</link>
+	<description>Oasis Digital Technology and News</description>
+	<lastBuildDate>Tue, 29 Sep 2015 18:39:41 +0000</lastBuildDate>
+	<language>en-US</language>
+	<sy:updatePeriod>hourly</sy:updatePeriod>
+	<sy:updateFrequency>1</sy:updateFrequency>
+	<generator>http://wordpress.org/?v=4.3.1</generator>
+	<item>
+		<title>Persistence in CQRS Read Models</title>
+		<link>http://blog.oasisdigital.com/2015/persistence-in-cqrs-read-models/</link>
+		<comments>http://blog.oasisdigital.com/2015/persistence-in-cqrs-read-models/#comments</comments>
+		<pubDate>Fri, 25 Sep 2015 17:56:41 +0000</pubDate>
+		<dc:creator><![CDATA[Konrad Garus]]></dc:creator>
+				<category><![CDATA[CQRS]]></category>
+
+		<guid isPermaLink="false">http://blog.oasisdigital.com/?p=813</guid>
+		<description><![CDATA[<p>One of the biggest benefits of CQRS is the ability to implement multiple read models. Business rules and the domain model are safe, clean and isolated over in the write model. They are not getting in the way of view models, which can selectively pick the pieces they are interested in, freely reshape them, and [&#8230;]</p>
+<p>The post <a rel="nofollow" href="http://blog.oasisdigital.com/2015/persistence-in-cqrs-read-models/">Persistence in CQRS Read Models</a> appeared first on <a rel="nofollow" href="http://blog.oasisdigital.com">The Oasis Digital Blog</a>.</p>
+]]></description>
+				<content:encoded><![CDATA[<p>One of the biggest benefits of CQRS is the ability to implement multiple read models. Business rules and the domain model are safe, clean and isolated over in the write model. They are not getting in the way of view models, which can selectively pick the pieces they are interested in, freely reshape them, and do everything in a way that needs different kind of elegance and clarity as the domain model.  The read models are all about query performance and convenience.</p>
+<p>Put simply, CQRS is a practical implementation of what Pat Helland described in his paper on immutability: <a href="http://www.cidrdb.org/cidr2015/Papers/CIDR15_Paper16.pdf"><em>The truth is the log. The database is a cache of a subset of the log.</em></a> Let&#8217;s have a look at some consequences of this approach.</p>
+<div style="width:700px;margin:0 auto"><img src="http://blog.oasisdigital.com/files/2015/09/es_cqrs_projection_700.png"></img></div>
+<h3><a id="Persistent_Models_in_RDBMS_2"></a>Persistent Models in Relational Databases</h3>
+<p>Perhaps the most obvious way to implement a read model is in a <strong>traditional SQL database</strong>. The technology has been around for decades, is really mature and battle-tested, and everyone is familiar with it.</p>
+<p>However, in the CQRS world we can do things that would be problematic in a typical application database schema. Since we optimize for read convenience and performance, the data is very often <strong>denormalized</strong>. It can happen in a number of ways:</p>
+<ul>
+<li>There may be fields combining data from some other fields (e.g. a single text field with human-friendly street address).</li>
+<li>The same data may be present in more than one place, more than one table. For example it may make sense to have human-readable street address in a single column, but at the same time keep state and city in different columns (or table).</li>
+<li>Sometimes it also makes sense to keep multiple revisions or change history of an entity, not just the final version.</li>
+<li>Another good example of denormalized data is analytics (like OLAP cubes).</li>
+<li>The data does not have to be relational. You don’t need to map fields in a Java object to columns, or map a graph of objects to a number of tables. You can just serialize the whole thing (to JSON, XML, using native Java serialization etc.) and put it in a blob field.</li>
+</ul>
+<h3>Why Denormalize?</h3>
+<p>You may be wondering why one would be using a denormalized schema in the first place. The answer is: to do more computation ahead of time, while processing events and while no human is waiting for the answer. It means less computation at the moment a human is waiting for the answer.</p>
+<p>The reason for this is that human time is expensive and getting more so, while computing power and storage is already extremely cheap and getting even cheaper. It is worth doing potentially a lot of computation in advance, to save a human a little bit of time.</p>
+<h3><a id="How_Much_Denormalization_13"></a>How Much Denormalization?</h3>
+<p>The degree of denormalization depends mainly on performance and query complexity. Fully normalized schema has its benefits, but also many drawbacks. Numerous joins, calculations and filters quickly become tricky to write and maintain. They can also become performance nightmare, for example with joins between massive tables. Even if you’re not joining many thousands of rows, nontrivial calculations can keep the users waiting.</p>
+<p>Denormalization can be used to prepare the answers for queries. If a query needs data that would normally live in several large tables, they can be combined once (in asynchronous projection), and then looked up in constant or logarithmic time when the users need it. It may even be possible to go to the extreme and precalculate responses to all common queries, eliminating the need for higher-level caching. In this case <em>the view model is the cache</em>.</p>
+<p>It’s necessary to look for balance here, though. Overly aggressive denormalization can lead to poor maintainability related to code duplication, as well as increase the sheer volume of data (in terms of bytes).</p>
+<h3><a id="Other_Persistent_Solutions_19"></a>Other Persistent Solutions</h3>
+<p>If the data doesn’t have to be relational, or if it can be denormalized, it may be a good idea to put it in a different kind of database. There is a wide range of <strong>NoSQL</strong> options to choose from, with the most obvious candidates being document and key-value stores.</p>
+<p>We don’t have to stop there though – if the data could benefit from a graph database, there are no obstacles. Another great example of a view model are search indexes like Lucene.</p>
+<p>Such stores often have their downsides. They may be trading off consistency for availability and performance. They may be very specialized or limited to particular models (graphs, documents, key-values etc.). It makes them challenging or even inapplicable as the primary persistence mechanism in a typical non-CQRS read/write model. However, they may be perfectly acceptable in a CQRS view model, and the advantages make the whole thing even more powerful.</p>
+<h3><a id="InMemory_27"></a>In-Memory</h3>
+<p>Another idea we have been considering is in-memory models. Writing to and reading from disk is slow, and if the data <a href="http://yourdatafitsinram.com/">fits in RAM</a>, why not just keep it in memory, in ordinary data structures in your language of choice?</p>
+<p>There are some challenges:</p>
+<ul>
+<li>If the event store is large enough, reading and consuming it may take a relatively long time and lots of resources. The limit may be farther away than it first seems, but it certainly is something that has to be carefully thought through.</li>
+<li>It needs to be transactional. It’s unacceptable for data to change while a query is reading it. You also may need to roll back, and that is far from trivial. It’s much easier in languages that support transactional memory or persistent data structures (like Clojure), and you would probably need a library with such functionality elsewhere.</li>
+</ul>
+<p>These challenges could be solved by using persistent, transactional storage:</p>
+<ul>
+<li>When consuming domain events, update an in-memory model. Don’t touch the disk.</li>
+<li>Every now and then (e.g. every 1000 events or every minute) take a snapshot of that model and write it to some persistent storage.</li>
+<li>Let queries read from that persistent snapshot, possibly caching it in memory.</li>
+<li>After restarting the application or an error, continue consuming the events from the latest snapshot.</li>
+</ul>
+<p>It’s getting close to persistent projections, but there are important differences. In this case persistence is only used for isolation and a way to resume from the savepoint after restart. Disk IO can happen asynchronously or less frequently, without slowing down the writer and queries.</p>
+<h3><a id="Data_Retention_45"></a>Data Retention</h3>
+<p>Most queries are only interested in relatively recent data. Some may need a year or two, others may only be interested in the last week. With the source data safe on the domain side, the read models are free to keep as little as they need. It can have huge positive impact on their performance and storage requirements.</p>
+<p>It&#8217;s also possible to have a number of models with identical schema but different data retention. Use the smaller data set as much as possible for best responsiveness. But still have the ability to fall back to a bigger data set for the occasional query about the faraway past, where longer response time is acceptable.</p>
+<p>This approach can be combined with different granularity: Keep all the details for the last few weeks or months, and aggregate or narrow down for the longer time period.</p>
+<h3><a id="Wrapping_Up_49"></a>Wrapping Up</h3>
+<p>NoSQL stores, analytics, search indexes, caches etc. are all very popular and useful tools, and very often they are used in a way resembling CQRS without acknowledging it. Whether they&#8217;re populated with triggers, messaging, polling or ETL, the end result is a new, specialized, read-only view on the data.</p>
+<p>However, the more mature and the bigger the project, the harder it is to introduce such things. It may become prohibitively expensive, with missed opportunities eventually leading to many problems down the road.</p>
+<p>It’s much, <em>much</em> easier if you have CQRS from the beginning. The domain model is kept safe and clean elsewhere, as is the ultimate source of data (like event store). The data is easily available for consumption (especially with event sourcing). All it takes to spin off a view model is plug in another consumer to the domain events.</p>
+<p>The view models are very good candidates for innovation, too. It’s really easy to try various kinds of databases and programming languages, as well as different ways of solving problems with the same tools.</p>
+<p>The post <a rel="nofollow" href="http://blog.oasisdigital.com/2015/persistence-in-cqrs-read-models/">Persistence in CQRS Read Models</a> appeared first on <a rel="nofollow" href="http://blog.oasisdigital.com">The Oasis Digital Blog</a>.</p>
+]]></content:encoded>
+			<wfw:commentRss>http://blog.oasisdigital.com/2015/persistence-in-cqrs-read-models/feed/</wfw:commentRss>
+		<slash:comments>0</slash:comments>
+		</item>
+		<item>
+		<title>Writing an Event-Sourced CQRS Read Model</title>
+		<link>http://blog.oasisdigital.com/2015/event-sourced-cqrs-read-model/</link>
+		<comments>http://blog.oasisdigital.com/2015/event-sourced-cqrs-read-model/#comments</comments>
+		<pubDate>Mon, 21 Sep 2015 22:45:25 +0000</pubDate>
+		<dc:creator><![CDATA[Konrad Garus]]></dc:creator>
+				<category><![CDATA[CQRS]]></category>
+
+		<guid isPermaLink="false">http://blog.oasisdigital.com/?p=796</guid>
+		<description><![CDATA[<p>Discussions about event sourcing and CQRS seem to usually focus on the overall system architecture or various flavors of domain-driven design in CQRS context. However, the read models are often neglected, even though there are some interesting considerations on this side as well. In this post we’re going to present a sample implementation of populating [&#8230;]</p>
+<p>The post <a rel="nofollow" href="http://blog.oasisdigital.com/2015/event-sourced-cqrs-read-model/">Writing an Event-Sourced CQRS Read Model</a> appeared first on <a rel="nofollow" href="http://blog.oasisdigital.com">The Oasis Digital Blog</a>.</p>
+]]></description>
+				<content:encoded><![CDATA[<p>Discussions about event sourcing and CQRS seem to usually focus on the overall system architecture or various flavors of domain-driven design in CQRS context. However, the read models are often neglected, even though there are some interesting considerations on this side as well. In this post we’re going to present a sample implementation of populating a view model by consuming event stream.</p>
+<h3><a id="Overview_2"></a>Overview</h3>
+<p><img style="float: right; margin: 10px;" src="http://blog.oasisdigital.com/files/2015/09/es_cqrs_projection_funnel_300_2.png" alt="" /></p>
+<p>The idea of a read model is really simple. You take the event log, apply (replay) all the events on an initially empty data model using appropriate functions, and you get the populated model. The code could look like:</p>
+<pre style="color: #000000; background: #ffffff; font-size: 90%;">List&lt;Event&gt; events = getEvents()<span style="color: #808030;">;</span>
+Model model = Model.empty()<span style="color: #808030;">;</span>
+for (Event event : events) <span style="color: #800080;">{</span>
+    apply<span style="color: #808030;">(</span>model<span style="color: #808030;">,</span> event<span style="color: #808030;">)</span><span style="color: #800080;">;</span>
+<span style="color: #800080;">}</span>
+</pre>
+<p>We can make this even shorter with functional programming:</p>
+<pre style="color: #000000; background: #ffffff; font-size: 90%;">Model m = reduce(getEvents(), Model.empty(), (m, e) -&gt; apply(m, e))<span style="color: #808030;">;</span>
+</pre>
+<p>That is the essence. Note that it is just the abstract outline and realistic implementation is likely to differ, including buffering, batching (or streaming), persistence etc.</p>
+<h3><a id="Applying_Events_40"></a>Applying Events</h3>
+<p>The actual Java code to apply the events may look similar to the below:</p>
+<pre style="color: #000000; background: #ffffff; font-size: 90%;">EventProcessingResult processEvents() <span style="color: #800080;">{</span>
+    <span style="color: #800000; font-weight: bold;">if</span> <span style="color: #808030;">(</span>getState<span style="color: #808030;">(</span><span style="color: #808030;">)</span><span style="color: #808030;">.</span>isRunning<span style="color: #808030;">(</span><span style="color: #808030;">)</span><span style="color: #808030;">)</span> <span style="color: #800080;">{</span>
+        <span style="color: #bb7977;">int</span> batchSize <span style="color: #808030;">=</span> getEventsPerIteration<span style="color: #808030;">(</span><span style="color: #808030;">)</span><span style="color: #800080;">;</span>
+        <span style="color: #bb7977; font-weight: bold;">List</span><span style="color: #808030;">&lt;</span><span style="color: #bb7977; font-weight: bold;">Event</span><span style="color: #808030;">&gt;</span> events <span style="color: #808030;">=</span> eventStore<span style="color: #808030;">.</span>getEventsForAllStreams<span style="color: #808030;">(</span>getLastEventId<span style="color: #808030;">(</span><span style="color: #808030;">)</span><span style="color: #808030;">,</span> batchSize<span style="color: #808030;">)</span><span style="color: #800080;">;</span>
+        <span style="color: #800000; font-weight: bold;">if</span> <span style="color: #808030;">(</span>events<span style="color: #808030;">.</span>isEmpty<span style="color: #808030;">(</span><span style="color: #808030;">)</span><span style="color: #808030;">)</span> <span style="color: #800080;">{</span>
+            <span style="color: #800000; font-weight: bold;">return</span> NO_EVENTS_TO_PROCESS<span style="color: #800080;">;</span>
+        <span style="color: #800080;">}</span> <span style="color: #800000; font-weight: bold;">else</span> <span style="color: #800080;">{</span>
+            <span style="color: #800000; font-weight: bold;">return</span> processEvents<span style="color: #808030;">(</span>events<span style="color: #808030;">)</span><span style="color: #800080;">;</span>
+        <span style="color: #800080;">}</span>
+    <span style="color: #800080;">}</span> <span style="color: #800000; font-weight: bold;">else</span> <span style="color: #800080;">{</span>
+        <span style="color: #800000; font-weight: bold;">return</span> NOT_RUNNING<span style="color: #800080;">;</span>
+    <span style="color: #800080;">}</span>
+<span style="color: #800080;">}</span>
+
+EventProcessingResult processEvents(List&lt;Event&gt; events) <span style="color: #800080;">{</span>
+    <span style="color: #800000; font-weight: bold;">try</span> <span style="color: #800080;">{</span>
+        <span style="color: #800000; font-weight: bold;">for</span> <span style="color: #808030;">(</span><span style="color: #bb7977; font-weight: bold;">Event</span> event <span style="color: #808030;">:</span> events<span style="color: #808030;">)</span> <span style="color: #800080;">{</span>
+            dispatchEvent<span style="color: #808030;">(</span>event<span style="color: #808030;">)</span><span style="color: #800080;">;</span>
+        <span style="color: #800080;">}</span>
+        <span style="color: #800000; font-weight: bold;">return</span> SUCCESS<span style="color: #800080;">;</span>
+    <span style="color: #800080;">}</span> <span style="color: #800000; font-weight: bold;">catch</span> <span style="color: #808030;">(</span><span style="color: #bb7977; font-weight: bold;">RuntimeException</span> e<span style="color: #808030;">)</span> <span style="color: #800080;">{</span>
+        <span style="color: #800000; font-weight: bold;">return</span> FAILURE<span style="color: #800080;">;</span>
+    <span style="color: #800080;">}</span>
+<span style="color: #800080;">}</span>
+</pre>
+<p>All in all it’s really simple and straightforward. It is possible to enhance it with hooks before and after processing individual events and the entire batch. Such hooks could be used to:</p>
+<ul>
+<li>implement transactions,</li>
+<li>plug in monitoring,</li>
+<li>implement error handling,</li>
+<li>calculate the batch size depending on speed,</li>
+<li>perform arbitrary operations, e.g. setting something up or recalculating once per batch.</li>
+</ul>
+<p>The last interesting piece is the <code>dispatchEvent</code> method. Aside from walking the type hierarchy, error handling and making it all optional, it boils down to:</p>
+<pre style="color: #000000; background: #ffffff; font-size: 90%;">void dispatchEvent(Event e) <span style="color: #800080;">{</span>
+    <span style="color: #bb7977; font-weight: bold;">Method</span> handler <span style="color: #808030;">=</span> projector<span style="color: #808030;">.</span>getClass<span style="color: #808030;">(</span><span style="color: #808030;">)</span><span style="color: #808030;">.</span>findMethod<span style="color: #808030;">(</span><span style="color: #0000e6;">"on"</span><span style="color: #808030;">,</span> e<span style="color: #808030;">.</span>getClass<span style="color: #808030;">(</span><span style="color: #808030;">)</span><span style="color: #808030;">)</span><span style="color: #800080;">;</span>
+    handler<span style="color: #808030;">.</span>invoke<span style="color: #808030;">(</span>projector<span style="color: #808030;">,</span> e<span style="color: #808030;">)</span><span style="color: #800080;">;</span>
+<span style="color: #800080;">}</span>
+</pre>
+<p>In other words, for each event type (like <code>OrderCreated</code>), we look for a public method called <code>on</code> that takes a single argument of matching type, on a <code>projector</code> object.</p>
+<p>All of the above is part of an engine, a piece of infrastructure backing many view models. All that is necessary to implement a projection is actually provide the projector, with handlers for interesting event types. All other events will simply be ignored.</p>
+<p>It could look like this:</p>
+<pre style="color: #000000; background: #ffffff; font-size: 90%;"><span style="color: #800000; font-weight: bold;">public</span> <span style="color: #800000; font-weight: bold;">class</span> OrderProjector <span style="color: #800080;">{</span>
+    <span style="color: #808030;">@</span>Inject
+    <span style="color: #800000; font-weight: bold;">private</span> OrderDao orders<span style="color: #800080;">;</span>
+
+    <span style="color: #800000; font-weight: bold;">public</span> <span style="color: #bb7977;">void</span> on<span style="color: #808030;">(</span>OrderCreated e<span style="color: #808030;">)</span> <span style="color: #800080;">{</span>
+        orders<span style="color: #808030;">.</span>save<span style="color: #808030;">(</span><span style="color: #800000; font-weight: bold;">new</span> Order<span style="color: #808030;">(</span>e<span style="color: #808030;">.</span>getOrderNumber<span style="color: #808030;">(</span><span style="color: #808030;">)</span><span style="color: #808030;">)</span><span style="color: #808030;">)</span><span style="color: #800080;">;</span>
+    <span style="color: #800080;">}</span>
+
+    <span style="color: #800000; font-weight: bold;">public</span> <span style="color: #bb7977;">void</span> on<span style="color: #808030;">(</span>OrderApproved e<span style="color: #808030;">)</span> <span style="color: #800080;">{</span>
+        Order o <span style="color: #808030;">=</span> orders<span style="color: #808030;">.</span>find<span style="color: #808030;">(</span>e<span style="color: #808030;">.</span>getOrderNumber<span style="color: #808030;">(</span><span style="color: #808030;">)</span><span style="color: #808030;">)</span><span style="color: #800080;">;</span>
+        o<span style="color: #808030;">.</span>setApproved<span style="color: #808030;">(</span><span style="color: #800000; font-weight: bold;">true</span><span style="color: #808030;">)</span><span style="color: #800080;">;</span>
+    <span style="color: #800080;">}</span>
+<span style="color: #800080;">}</span>
+</pre>
+<h3>Projection Thread</h3>
+<p>Let’s discuss multi-threading for a moment. Shared mutable state immediately brings numerous problems and <a href="http://squirrel.pl/blog/2012/04/21/programming-concurrency-on-the-jvm/">should be avoided as much as possible</a>. One of the ways to deal with it is not having concurrency in the first place, e.g. by limiting writes to a single thread. <a href="http://blog.oasisdigital.com/2015/achieving-consistency-in-cqrs-with-linear-event-store">In most cases</a> a single-threaded writer combined with ACID transactions is more than enough to keep up with the write load. (The read/query load can be heavy and use many threads &#8211; all of the details here are only about the writes.)</p>
+<p>The thread is responsible for applying the events to the read model, all the way from querying the event store to updating the view model database. Normally it just loads batches of events from the store and applies them. It continues as long as there are more events to process, and goes to sleep after it’s caught up. It wakes up after a certain amount of time or when notified about new events by the event store.</p>
+<p>We also have some control over this thread’s life cycle. For example, we have a way to programmatically pause and resume each projection’s thread, even exposed in an admin GUI.</p>
+<p><img src="http://blog.oasisdigital.com/files/2015/09/projection_admin.png" alt="" /></p>
+<h3>Push or Pull?</h3>
+<p>With a database-backed event store, it&#8217;s very easy to query repeatedly for new events. This is the <em>pull</em> model. Unfortunately, it also means that you may end up polling too often and generating needless load, or polling too infrequently and thus possibly taking longer to propagate changes to the view model.</p>
+<p>That&#8217;s why in addition to polling the event store it&#8217;s a good idea to introduce notifications that wake up the read models as soon as new events are saved. This effectively becomes a <em>push</em> model with minimal delays and load. We found JGroups to be a very good tool for the job &#8211; it supports multiple protocols and is very easy to set up, involving much less hassle than a full-blown message queue.</p>
+<p>The notifications may or may not contain actual events.</p>
+<p>In the latter (and simpler) design, they only spread the information that a new event has been saved, along with its sequential ID (so that all projections can estimate how much behind they are). When awakened, the executor can continue along its normal path, starting with querying the event store.</p>
+<p>Why? Because handling events coming from a single source is easier, but more importantly because a DB-backed event store trivially guarantees ordering and has no issues with lost or duplicate messages. Querying the database is very fast, given that we’re reading a single table sequentially by primary key, and most of the time the data is in RAM cache anyway. The bottleneck is in the projection thread updating its read model database.</p>
+<p>However, there are no obstacles to putting event data in the notifications (except for maybe size or network traffic considerations). It would likely decrease the load on the event store and save some round trips to database. The projector would need to maintain a buffer and fall back to querying the event store when needed. Or the system could use a more reliable message queue.</p>
+<h3>Restarting Projections</h3>
+<p>Aside from pause/resume, the above screenshot shows one more action: restart. Innocuous as it looks, it’s a really nice and powerful feature.</p>
+<p>Since the view model is completely derived from the event log, at any time it can be thrown away and recreated from the beginning (or from some initial state/old enough snapshot). Data is safe in the event log, the ultimate source of truth.</p>
+<p>It’s useful when anything about the view changes: a field or a table is added, a bug is fixed, something is calculated differently. When it happens, it’s often easier (or required) to just start from the beginning, rather than for example implement massive SQL migration script.</p>
+<p>It&#8217;s even possible to go as far as fully automating it, so that when the system starts up and it detects the DB schema does not match the corresponding Java model, it can automatically recreate the schema and reprocess the event log. It&#8217;s like running with Hibernate create-drop policy, except for that it doesn&#8217;t lose data.</p>
+<h3>Performance</h3>
+<p>The solution may appear quite limited with regards to performance. One point that could raise an eyebrow is the <strong>single-threaded writer</strong>. In reality a single thread is usually fast enough to easily keep up with the load. Concurrency is not only more difficult to implement and maintain, but it also introduces contention. Reads (queries) can be <strong>heavily multi-threaded</strong> and easy to scale out.</p>
+<p>We also gain a lot by having multiple read models, for example separating analytics from administration and “transactional” data. Each model is single-threaded (for writing), but the multiple models consume events in parallel. Finally, the solution could be modified to use sharding or some kind of fork-join processing.</p>
+<p>Another interesting point is <strong>restarting projections</strong> from scratch.</p>
+<p>A good solution is something like <a href="http://radar.oreilly.com/2014/07/questioning-the-lambda-architecture.html">kappa architecture</a>:</p>
+<ul>
+<li>Keep the outdated projection up and running and answering all the queries.</li>
+<li>Start a new projection, e.g. to another database. Just let it process the events, don’t point any traffic to it.</li>
+<li>When the new projection catches up, redirect traffic and shut down the old one.</li>
+</ul>
+<p>On a very small instance, especially for development, it may even be possible to do a restart online, on the same instance. It depends on answers to the following questions: How long does it take to reprocess all events? Is it acceptable for this projection to be stale for 30 minutes? Can we deploy at night or weekend, when nobody is using the system anyway? Do we have to replay all the history?</p>
+<p>Another factor to consider here is persistence. If it&#8217;s too much of a bottleneck and cannot be further optimized, consider using in-memory view models.</p>
+<h3>Summing Up</h3>
+<p>In essence, that’s all it takes to implement a read model consuming an event store. It gains much simplicity thanks to a <a href="http://blog.oasisdigital.com/?p=786">linear event store</a> and processing everything in a single thread. So much that in the end it’s really just a loop, implementing the reduction shown in the beginning.</p>
+<p>In future posts I am going to dig deeper into practical concerns of implementing projections.</p>
+<p>&nbsp;</p>
+<p>The post <a rel="nofollow" href="http://blog.oasisdigital.com/2015/event-sourced-cqrs-read-model/">Writing an Event-Sourced CQRS Read Model</a> appeared first on <a rel="nofollow" href="http://blog.oasisdigital.com">The Oasis Digital Blog</a>.</p>
+]]></content:encoded>
+			<wfw:commentRss>http://blog.oasisdigital.com/2015/event-sourced-cqrs-read-model/feed/</wfw:commentRss>
+		<slash:comments>0</slash:comments>
+		</item>
+		<item>
+		<title>Achieving Consistency in CQRS with Linear Event Store</title>
+		<link>http://blog.oasisdigital.com/2015/cqrs-linear-event-store/</link>
+		<comments>http://blog.oasisdigital.com/2015/cqrs-linear-event-store/#comments</comments>
+		<pubDate>Fri, 11 Sep 2015 17:52:27 +0000</pubDate>
+		<dc:creator><![CDATA[Konrad Garus]]></dc:creator>
+				<category><![CDATA[CQRS]]></category>
+
+		<guid isPermaLink="false">http://blog.oasisdigital.com/?p=786</guid>
+		<description><![CDATA[<p>In a recent project involving an event-sourced CQRS system, we decided to do some things that seem somewhat unusual compared to solutions mostly talked about. However, they let us achieve some nice properties that would be hard (if possible at all) otherwise. Event Store as Regular Table We decided to implement the event store as [&#8230;]</p>
+<p>The post <a rel="nofollow" href="http://blog.oasisdigital.com/2015/cqrs-linear-event-store/">Achieving Consistency in CQRS with Linear Event Store</a> appeared first on <a rel="nofollow" href="http://blog.oasisdigital.com">The Oasis Digital Blog</a>.</p>
+]]></description>
+				<content:encoded><![CDATA[<p>In a recent project involving an event-sourced CQRS system, we decided to do some things that seem somewhat unusual compared to solutions mostly talked about. However, they let us achieve some nice properties that would be hard (if possible at all) otherwise.</p>
+<h3><a id="Event_Store_as_Regular_Table_2"></a>Event Store as Regular Table</h3>
+<p>We decided to implement the event store as a regular table in an RDBMS. We used PostgreSQL, but there is little PostgreSQL-specific here. We know this database is very reliable, powerful and simply mature. On top of that, single-node ACID transactions provide some really nice benefits.</p>
+<p>The table ended up with the following fields:</p>
+<ul>
+<li><code>event_id</code> (int) &#8211; primary key coming from a global sequence</li>
+<li><code>stream_id</code> (UUID) &#8211; ID of an event stream, typically a DDD aggregate</li>
+<li><code>seq_no</code> (int) &#8211; sequence number in history of a particular stream</li>
+<li><code>transaction_time</code> (timestamp) &#8211; transaction start time, the same for all events committed in one transaction</li>
+<li><code>correlation_id</code> (UUID)</li>
+<li><code>payload</code> (JSON)</li>
+</ul>
+<p>Not all of them are mandatory for an event store, but there is one important and uncommon difference: <code>event_id</code> &#8211; globally, sequentially increasing number. We’ll get to that in a moment.</p>
+<h3>Can You Do It?</h3>
+<p>If you go for an event store in a regular DB table, getting a global event ID like this is extremely cheap. Databases are really efficient generating, storing, indexing etc. such columns. The only <em>actual</em> problem is whether you can afford using a DB table for it in the first place.</p>
+<p>The limits for an append-only relational table are much higher than most applications will ever need. Postgres can easily handle thousands (or tens of thousands) of writes <em>per second</em>.</p>
+<p>Using a relational database certainly adds overhead and it’s not something I&#8217;d recommend if you were building the next Amazon. But chances are you aren’t, and so you may be able to afford the luxury of using simpler technology.</p>
+<h3><a id="Benefits_of_Global_Sequential_Event_ID_24"></a>Benefits of Global, Sequential Event ID</h3>
+<p>Now that we have this peculiar event ID, what can we do with it?</p>
+<p>Let’s have a look at the read interface of our event store:</p>
+<pre style="color: #000000;background: #ffffff"><span style="color: #800000;font-weight: bold">public</span> <span style="color: #800000;font-weight: bold">interface</span> EventStoreReader <span style="color: #800080">{</span>
+    <span style="color: #bb7977;font-weight: bold">List</span><span style="color: #808030">&lt;</span><span style="color: #bb7977;font-weight: bold">Event</span><span style="color: #808030">&gt;</span> getEventsForStream<span style="color: #808030">(</span>UUID streamId<span style="color: #808030">,</span> <span style="color: #bb7977">long</span> afterSequence<span style="color: #808030">,</span> <span style="color: #bcomparing the last-processed event id for a projection to the current global maximum, you can immediately tell how much behind the projection is. it’s the logical equivalent of queue size.b7977">int</span> limit<span style="color: #808030">)</span><span style="color: #800080">;</span>
+    <span style="color: #bb7977;font-weight: bold">List</span><span style="color: #808030">&lt;</span><span style="color: #bb7977;font-weight: bold">Event</span><span style="color: #808030">&gt;</span> getEventsForAllStreams<span style="color: #808030">(</span><span style="color: #bb7977">long</span> afterEventId<span style="color: #808030">,</span> <span style="color: #bb7977">int</span> limit<span style="color: #808030">)</span><span style="color: #800080">;</span>
+    Optional<span style="color: #808030">&lt;</span><span style="color: #bb7977;font-weight: bold">Long</span><span style="color: #808030">&gt;</span> getLastEventId<span style="color: #808030">(</span><span style="color: #808030">)</span><span style="color: #800080">;</span>
+<span style="color: #800080">}</span>
+</pre>
+<p>The first method is pretty obvious and something you can find everywhere. We only use it to restore a single stream (aggregate) from the event store for handling a new command.</p>
+<p>The other two are using the event ID, returning a batch of events after a particular event, and ID of the last event. They are the base of our read models (projections).</p>
+<div style="float: right"><img src="http://blog.oasisdigital.com/files/2015/09/linear_read_models-e1441992727210.png" alt="" /></div>
+<p>Read models are implemented by polling (with hints) the event store. They <strong>remember the ID of the last processed event</strong>. Every once in a while (or when awoken by a notification from the event store), they read the next batch of events from the store and process them in sequence, in a single thread.</p>
+<p>This kind of linear, single-threaded processing is probably as simple as it can get, but it obviously has limited scalability. If you get 600 events per minute, it means on average you cannot be slower than 100 ms per event, no matter what. In reality you also need to consider overhead and leave some headroom, so it needs to be faster than that.</p>
+<p>It can be addressed with sharding or parallelizing writes in the read model, but for the moment we did not find it necessary. Having multiple independent, specialized models running in parallel certainly helps with that.</p>
+<p>Comparing the last-processed event ID for a projection to the current global maximum, you can <strong>immediately tell how much behind the projection is</strong>. It’s the logical equivalent of queue size.</p>
+<p>The global sequence can also be used to <strong>mitigate the downsides of eventual consistency</strong> (or staleness).</p>
+<p>Executing a command could return the ID of the last written event. Then a query can use this ID, requesting: “I’m fine waiting 5 seconds, but don’t give me the result if your data is older than this ID”. Most of the time it’s a matter of mere milliseconds. For that price, when a user makes a change, she immediately sees the results. And it’s the actual data coming from the server, not simulation achieved by duplicating domain logic in the user interface!</p>
+<p>It’s also useful on the domain side. We have some application and domain services that query some domain-specific projections (e.g. for unique checks). If you know that the last event in the event store is X, you can just wait until the projection catches up to that point before making further progress on the command. That’s all it takes to address many problems typically solved with a saga.</p>
+<p>Last but not least, since all events are ordered, <strong>the projection is always consistent</strong>. It may be behind by a few seconds, or a few days, but it’s never inconsistent. It’s simply impossible to run into issues like having one stream processed until Monday, but another until Thursday. If something had happened before a particular event occurred, the same order is always maintained in the view model.</p>
+<p>It makes the code and the state of the system a lot easier to write, maintain, and reason about.</p>
+<h3>Scalability and Complexity Revisited</h3>
+<p>There is a tendency to use complex, high-scalability technology regardless of the actual customer requirements and realistic scale. Such tools have their place, but they&#8217;re not obvious winners, no golden hammers solving all problems. Moreover, they are really expensive, if you consider the complexity of development and operations, and their limits.</p>
+<p>Sometimes a simpler tool will solve the problem well. Not only do you save on development and ops, but also gain access to some really powerful tools that are impossible at high scale. Including global counters, linearizability and ACID transactions.</p>
+<p>SQL databases are really fast and come with many useful tools in the box. Linear processing aligns well with hardware limitations, and its limits in general (beyond SQL) are at least in the order of <a href="http://martinfowler.com/articles/lmax.html">millions of transactions per second</a> for a single thread.</p>
+<p>There are many good reasons to <a href="http://mcfunley.com/choose-boring-technology">choose boring technology</a>. If you innovate (and you should), be careful with why you actually do it, and don’t innovate in all areas at the same time.</p>
+<p>The post <a rel="nofollow" href="http://blog.oasisdigital.com/2015/cqrs-linear-event-store/">Achieving Consistency in CQRS with Linear Event Store</a> appeared first on <a rel="nofollow" href="http://blog.oasisdigital.com">The Oasis Digital Blog</a>.</p>
+]]></content:encoded>
+			<wfw:commentRss>http://blog.oasisdigital.com/2015/cqrs-linear-event-store/feed/</wfw:commentRss>
+		<slash:comments>0</slash:comments>
+		</item>
+		<item>
+		<title>Introduction to Event Sourcing and Command-Query Responsibility Segregation</title>
+		<link>http://blog.oasisdigital.com/2015/introduction-to-event-sourcing-and-cqrs/</link>
+		<comments>http://blog.oasisdigital.com/2015/introduction-to-event-sourcing-and-cqrs/#comments</comments>
+		<pubDate>Sat, 05 Sep 2015 17:04:03 +0000</pubDate>
+		<dc:creator><![CDATA[Konrad Garus]]></dc:creator>
+				<category><![CDATA[CQRS]]></category>
+		<category><![CDATA[Development]]></category>
+
+		<guid isPermaLink="false">http://blog.oasisdigital.com/?p=772</guid>
+		<description><![CDATA[<p>The concepts of event sourcing (ES) and command-query responsibility segregation (CQRS) have been around for quite a while. They are getting more and more attention in the Java community, though they seem to have been much more popular over on the .NET side. I have spent the last few months implementing a system with such [&#8230;]</p>
+<p>The post <a rel="nofollow" href="http://blog.oasisdigital.com/2015/introduction-to-event-sourcing-and-cqrs/">Introduction to Event Sourcing and Command-Query Responsibility Segregation</a> appeared first on <a rel="nofollow" href="http://blog.oasisdigital.com">The Oasis Digital Blog</a>.</p>
+]]></description>
+				<content:encoded><![CDATA[<p>The concepts of <a href="http://martinfowler.com/eaaDev/EventSourcing.html">event sourcing (ES)</a> and <a href="http://martinfowler.com/bliki/CQRS.html">command-query responsibility segregation (CQRS)</a> have been around for quite a while. They are getting more and more attention in the Java community, though they seem to have been much more popular over on the .NET side.</p>
+<p>I have spent the last few months implementing <a href="http://oasisdigital.com/project/java-employee-performance-cqrs">a system</a> with such an architecture at <a href="http://oasisdigital.com">Oasis Digital</a>. While working on it, we aimed for flexibility and the ability to make the right trade-offs and choose our own tools. Some interesting solutions came up in the process, things that would probably be impossible with existing frameworks like <a href="http://www.axonframework.org/">Axon</a>.</p>
+<p>I am going to write more about some of these pieces in the future. Before we get there, let’s start with a brief introduction to event sourcing and command-query responsibility segregation.</p>
+<h3>CQS</h3>
+<p>The main idea of command-query separation (CQS) is that all operations are either:</p>
+<ul>
+<li>commands, changing state of the system,</li>
+<li>queries, getting some information from the system.</li>
+</ul>
+<p>Either one or the other, never both. For example, if a command changes anything in the system, it should not be used to read its state. Mutation-free read access should always be possible. Asking a system to <em>change</em> something to read a value seems plain wrong, and <em>queries</em> inadvertently changing state are very confusing, surprising and leading to bugs at best.</p>
+<p>These principles can be applied on all levels. <a href="http://amzn.com/0132350882">Uncle Bob in “Clean Code”</a> calls it one of the main principles of good function design. The pattern is also applicable to system design.</p>
+<h3>CQRS in System Architecture</h3>
+<p>Command-query responsibility segregation (CQRS) is a pattern in system architecture inspired by CQS. It divides the system in two distinct parts, separating the components used for writing (executing commands) from those for querying. In such a system we can find two kinds of requests corresponding to these two models.</p>
+<div style="float: right; border: 1px solid gray; padding: 3px; margin: 10px;">
+<p><img src="http://blog.oasisdigital.com/files/2015/09/udi_cqrs_inverted_alpha-e1441181187142.png" alt="" /></p>
+<p style="margin: 3px;"><small>AC stands for Autonomous Component</small></p>
+</div>
+<p>Firstly, there are <em>commands</em> &#8211; ordering the system do something or change its state. A piece of business logic updates the <strong>domain model</strong> (or rejects the command) and lets the client know that the change has been accepted (or not).</p>
+<p>The business logic is often implemented using <a href="http://amzn.com/0321125215">domain-driven design</a>, but it may just as well be transaction script or any other applicable technique. Actually, we ended up using a mix of these two in one area of the system.</p>
+<p>Whenever anything changes, the domain model somehow notifies everyone &#8211; for example by publishing domain events. These events are received by <strong>view models</strong>, which update their own representation of the state, separate from the domain model.</p>
+<p>This leads us to the second kind of requests: <em>queries</em>, getting information from the system without changing its state. These only use the view models, not the domain.</p>
+<p>What is especially powerful about this pattern is the separation of concerns.</p>
+<p>The domain (write) side is all about the business. It does not care about queries, all the different ways to show this information to the users, performance, optimal storage for these purposes and all that.</p>
+<p>On the other hand, the query (read) side is all about the read access. Its main purpose is making queries fast and convenient.</p>
+<p>While the domain is only implemented once, there can be multiple view models over the same data. They often use different databases. They can even be using different technologies &#8211; all kinds of NoSQL, normalized and denormalized SQL, in-memory representations, Lucene indexes, OLAP cubes etc.</p>
+<p>The read models are also free to use different languages, if they make anything easier. There are no obstacles to implementing the domain model in Scala, but doing view models in Clojure or even SQL stored procedures.</p>
+<p>Overall, the view models are very good (and safe) candidates for innovation.</p>
+<p>Unlike the domain model, code quality in view models does not have to be perfect. They&#8217;re all about reshaping data and moving it around to make reads convenient. Some shortcuts and dirty tricks may be acceptable, as long as they don&#8217;t make the whole thing unmaintainable.</p>
+<p>Read models are often denormalized, prepared to answer concrete questions in optimal way. It can even be as extreme as having a precomputed set answers to every query that the system will handle, stored in some trivial key-value way.</p>
+<p>We often call the view models &#8220;projections&#8221; &#8211; because they &#8220;project&#8221; the domain events to a particular model, keeping only as much information as is necessary and in optimal shape for queries they serve.</p>
+<p>Note that all the domain logic is only implemented in the domain (write) model. It&#8217;s done once and in the right place. Even if a value is directly derived (calculated), as soon as it has a business meaning or is calculated with some business logic, it belongs in the domain model.</p>
+<h3>Event Sourcing</h3>
+<p>Another pattern commonly used with CQRS is <a href="http://martinfowler.com/eaaDev/EventSourcing.html">event sourcing</a>.</p>
+<p>In short, it means that all data in the system is stored in the form of events, in an event log. An event is a piece of information stating that something has occurred (user created, name changed, shipping address added, order submitted, order delivered). They’re always in past tense, saying that something <em>has</em> happened.</p>
+<p>The events never change. You can never delete or update them. If something has happened, it’s happened. If it was a mistake, it can be corrected with a complementary action generating a new “inverse” event, but there’s no going back and saying it has not happened.</p>
+<h3>Combining ES and CQRS</h3>
+<p>Event sourcing and command-query responsibility segregation perfectly fit each other. It’s a powerful synergy effect: each of them becomes more powerful thanks to the combination.</p>
+<p>When a command comes in, the domain model calculates the new state of the system and possibly emits some new events (which are the only way the changes are persisted). When another command comes in for the same logical area, the domain model is restored from the past events, and responds to the new command by generating some new events. The events represent concrete changes that have business meanings. Technically in a sense they are “deltas” (or “diffs”) of the system state.</p>
+<p>The view models simply handle these events, picking up only these they are interested in, and updating their state to support future queries.</p>
+<h3>Benefits</h3>
+<p>There are many benefits to using this approach, let me just point out a few of them.</p>
+<p>CQRS naturally leads to <a href="http://blog.oasisdigital.com/2014/task-based-user-interfaces/"><strong>task-based UIs</strong></a>. Every action represents some very concrete business event. There can be a huge difference between changing someone’s name, changing their shipping address, or making them a gold customer. If end user wants to change name, they get a small form that has exactly what is needed for that operation. If they make a customer gold &#8211; that’s another action in another form.</p>
+<p>Contrast this with the traditional CRUD, spreadsheet-like systems. They have no such operations as “change name” or “change customer status to gold”. All the users can do is “change user”. Implementing logic that changes something when a particular field changes all of a sudden becomes harder. Validation is a nightmare. Auditing and simply seeing when something happened and what the users did, is impossible without adding more layers of complexity on top.</p>
+<p>It is harder for the users, too &#8211; the use cases have to be implemented in their minds, knowing what to change when to achieve a desired effect.</p>
+<p>Related to the above, and a reason why CQRS is often used with domain-driven design, is that the shape of the system <strong>naturally maps to business contexts and use cases</strong>. Commands correspond to concrete user intents, and queries are designed to answer concrete questions. Once again, it’s the exact opposite of a glorified spreadsheet-like DB frontend.</p>
+<p>It’s applicable on higher level, too: Different areas of the business (bounded contexts in the DDD lingo) can be implemented as separate models. For example, a warehousing context can represent a book in a completely different way than a sales context. One may be interested in its size, weight and number on stock. The other &#8211; in author, genre, cover image, publisher description etc.</p>
+<p>Event sourcing also <strong>makes reporting a lot easier</strong>. By definition it never loses information. Maybe yesterday you did not need to know how often users add and remove items from the shopping cart, and only cared about the orders they eventually submitted. But today business wants to trace this information, so maybe they can discover items that clients wanted but changed their mind. It may be worthwhile to tempt them with these items in future ads.</p>
+<p>Answering such a change in a “traditional” system would be a nontrivial effort. With ES+CQRS chances are that all it will take is just another straightforward projection of data that is already there, and immediately <em>answer questions about the past!</em></p>
+<p>Finally, another obvious benefit is <strong>performance</strong>. Since the view models are separate, they can have very different schema. Avoid joins, keep data denormalized, answer many questions in linear or even constant time. Read-only access is much easier to scale, as is the write side which doesn’t care about queries anymore.</p>
+<h3>Costs</h3>
+<p>ES+CQRS is not without cost, and is not the best approach to all systems. More about this in a future post.</p>
+<h3><a id="More_Resources_81"></a>More Resources</h3>
+<p>Like I said in the beginning, these ideas have been around for quite a few years. There is a huge number of resources available online, in books and at conferences. This post has merely scratched the surface and is only meant as (yet another) humble introduction to the topic.</p>
+<p>Here’s a few links to the masters:</p>
+<ul>
+<li>Martin Fowler on <a href="http://martinfowler.com/eaaDev/EventSourcing.html">Event Sourcing</a>, <a href="http://martinfowler.com/bliki/CommandQuerySeparation.html">CQS</a> and <a href="http://martinfowler.com/bliki/CQRS.html">CQRS</a>.</li>
+<li>Udi Dahan on <a href="http://udidahan.com/2009/12/09/clarified-cqrs/">CQRS</a>.</li>
+<li>Greg Young:
+<ul>
+<li><a href="http://codebetter.com/gregyoung/2010/02/16/cqrs-task-based-uis-event-sourcing-agh/">CQRS, Task Based UIs, Event Sourcing agh!</a> &#8211; very quick introduction to ES, CQRS and task-based UIs.</li>
+<li><a href="https://www.youtube.com/watch?v=JHGkaShoyNs">CQRS and Event Sourcing &#8211; Code on the Beach 2014</a> (video)</li>
+<li><a href="https://www.youtube.com/watch?v=whCk1Q87_ZI">Six-hour long class</a> (video)</li>
+<li><a href="http://www.infoq.com/presentations/8-lines-code-refactoring">8 Lines of Code</a> (video)</li>
+</ul>
+</li>
+<li>Sandro Mancuso on <a href="https://vimeo.com/101106002">Crafted Design</a> (video) &#8211; pragmatic approach to architecture inspired by CQRS.</li>
+</ul>
+<p>The post <a rel="nofollow" href="http://blog.oasisdigital.com/2015/introduction-to-event-sourcing-and-cqrs/">Introduction to Event Sourcing and Command-Query Responsibility Segregation</a> appeared first on <a rel="nofollow" href="http://blog.oasisdigital.com">The Oasis Digital Blog</a>.</p>
+]]></content:encoded>
+			<wfw:commentRss>http://blog.oasisdigital.com/2015/introduction-to-event-sourcing-and-cqrs/feed/</wfw:commentRss>
+		<slash:comments>0</slash:comments>
+		</item>
+	</channel>
+</rss>

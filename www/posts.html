@@ -1,0 +1,23 @@
+<template>
+  <require from="./json-format"></require>
+  <div class="container">
+    <h2>Blog Posts</h2>
+    <p>Here are a few of the recent posts from the Oasis Digital blog.
+      They are loaded from an XML file stored in this project,
+      to avoid having to deal with CORS by loading them from the web;
+      the purpose here is really to show how data can be loaded via an API,
+      not to serve as the world's worst blog reader.</p>
+
+    <div class="row">
+      <div class="col-md-3 col-sm-6" repeat.for="x of data">
+        <div class="well">
+        <h4>${x.title} </h4>
+        <p><a target="_blank" class="btn btn-default" href.bind="x.url">View</a></p>
+        </div>
+      </div>
+    </div>
+
+    <h2>JSON Value Converter Example</h2>
+    <pre>${data | jsonFormat }</pre>
+  </div>
+</template>

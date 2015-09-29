@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Aurelia JSPM Example</title>
+    <!-- required for good results with responsive Bootstrap -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+  <body aurelia-app>
+    <script src="jspm_packages/system.js"></script>
+    <script src="config.js"></script>
+    <script>
+      // We don't need to load our app's module - Aurelia loads "App" automatically.
+      System.import('aurelia-bootstrapper');
+      // console debug logging is turned on automatically in development,
+      // triggered by the websocket connection; you don't need to do anything to
+      // turn it on or off.
+    </script>
+  </body>
+</html>

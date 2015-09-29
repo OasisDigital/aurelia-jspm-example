@@ -1,0 +1,5 @@
+node_modules
+www/jspm_packages
+dist.*
+*~
+.idea
