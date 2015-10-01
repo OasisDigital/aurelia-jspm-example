@@ -9,7 +9,8 @@ There is a surprising amount of recent technology behind the scenes,
 compared to single page web apps built using tools only a few years old;
 I will look for a way to more effectively explain it later.
 
-[Kyle Cordes](http://kylecordes.com), reach me at [Oasis Digital](http://oasisdigital.com/)
+[Kyle Cordes](http://kylecordes.com),
+reach me at [Oasis Digital](http://oasisdigital.com/)
 
 ## Getting Started
 
